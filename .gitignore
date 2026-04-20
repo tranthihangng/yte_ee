@@ -1,0 +1,52 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# Logs
+*.log
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# App runtime artifacts
+medical-ai-app/backend/uploads/*
+!medical-ai-app/backend/uploads/.gitkeep
+medical-ai-app/backend/outputs/detections/*
+!medical-ai-app/backend/outputs/detections/.gitkeep
+medical-ai-app/backend/outputs/gradcam/*
+!medical-ai-app/backend/outputs/gradcam/.gitkeep
+medical-ai-app/backend/outputs/masks/*
+!medical-ai-app/backend/outputs/masks/.gitkeep
+medical-ai-app/backend/outputs/overlays/*
+!medical-ai-app/backend/outputs/overlays/.gitkeep
+medical-ai-app/backend/outputs/reports/*
+!medical-ai-app/backend/outputs/reports/.gitkeep
+
+# Local database
+medical-ai-app/backend/*.db
+
+# Heavy model weights/checkpoints
+*.pt
+*.pth
+*.ckpt

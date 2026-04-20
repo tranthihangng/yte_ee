@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Báo cáo phân tích ảnh y tế</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #0f172a; margin: 32px; }
+      h1, h2, h3 { margin: 0 0 12px; }
+      .header { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 24px; }
+      .meta { margin-bottom: 16px; }
+      .label { font-weight: 700; display: inline-block; min-width: 160px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+      .img-box { border: 1px solid #dbeafe; border-radius: 14px; padding: 12px; background: #f8fbff; }
+      .section { border: 1px solid #dbeafe; border-radius: 14px; padding: 16px; background: #ffffff; margin-top: 18px; }
+      .footer { margin-top: 28px; border-top: 1px solid #cbd5e1; padding-top: 16px; display: flex; justify-content: space-between; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h2>MedAI Assist</h2>
+      <h1>BÁO CÁO PHÂN TÍCH ẢNH Y TẾ</h1>
+    </div>
+    <div class="meta">
+      <div><span class="label">Mã ca:</span> {{ case.case_code }}</div>
+      <div><span class="label">Bệnh nhân / ID:</span> {{ case.patient_name }} / {{ case.patient_identifier }}</div>
+      <div><span class="label">Ngày chụp:</span> {{ case.study_date }}</div>
+      <div><span class="label">Loại phân tích:</span> {{ case.module_type }}</div>
+    </div>
+    <div class="grid">
+      <div class="img-box">
+        <h3>Ảnh gốc</h3>
+      </div>
+      <div class="img-box">
+        <h3>Ảnh kết quả phân tích</h3>
+      </div>
+    </div>
+    <div class="section">
+      <h3>Kết quả phân tích</h3>
+      <p><strong>Kết quả:</strong> {{ prediction.predicted_label }}</p>
+      <p><strong>Độ tin cậy:</strong> {{ prediction.confidence }}</p>
+      <p><strong>Tóm tắt:</strong> {{ prediction.summary }}</p>
+    </div>
+    <div class="section">
+      <h3>Ghi chú lâm sàng</h3>
+      <p>{{ case.notes }}</p>
+    </div>
+    <div class="footer">
+      <div><strong>Bác sĩ xác nhận</strong></div>
+      <div><strong>Hệ thống AI</strong></div>
+      <div><strong>Ngày tạo báo cáo</strong></div>
+    </div>
+  </body>
+</html>

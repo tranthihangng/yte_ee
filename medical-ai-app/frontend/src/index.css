@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, Arial, sans-serif;
+  background: #f3f6fb;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.card {
+  @apply rounded-2xl border border-slate-200/90 bg-white shadow-[0_8px_26px_-18px_rgba(15,23,42,0.45)];
+}
+
+.soft-panel {
+  @apply rounded-2xl border border-slate-200 bg-[#f8fbff];
+}
+
+.input-base {
+  @apply h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100;
+}
+
+.section-title {
+  @apply text-[40px] font-bold tracking-[-0.02em] text-slate-800;
+}
+
+.subtle-title {
+  @apply text-lg font-semibold text-slate-800;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.status-pill {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+}
+
+.tab-btn {
+  @apply rounded-lg px-3 py-1.5 text-sm font-medium transition;
+}
+
+.tab-btn-active {
+  @apply bg-blue-600 text-white;
+}
+
+.tab-btn-inactive {
+  @apply bg-slate-100 text-slate-600 hover:bg-slate-200;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
