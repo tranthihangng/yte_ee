@@ -8,12 +8,14 @@ const iconMap = {
   brain_mri: Brain,
   histopath: Microscope,
   wrist_xray: Bone,
+  tuberculosis_counting: Microscope,
 };
 
 const bgMap = {
   brain_mri: "from-slate-900 to-slate-700",
   histopath: "from-fuchsia-200 to-violet-200",
   wrist_xray: "from-slate-800 to-slate-500",
+  tuberculosis_counting: "from-rose-300 to-pink-300",
 };
 
 export function ModuleCard({
@@ -22,7 +24,7 @@ export function ModuleCard({
   title,
   description,
 }: {
-  moduleType: "brain_mri" | "histopath" | "wrist_xray";
+  moduleType: "brain_mri" | "histopath" | "wrist_xray" | "tuberculosis_counting";
   badge: string;
   title: string;
   description: string;
@@ -31,10 +33,10 @@ export function ModuleCard({
   const Icon = iconMap[moduleType];
 
   return (
-    <Card className={`overflow-hidden border ${moduleType === "brain_mri" ? "border-blue-200 bg-blue-50/40" : moduleType === "histopath" ? "border-violet-200 bg-violet-50/40" : "border-emerald-200 bg-emerald-50/40"}`}>
+    <Card className={`overflow-hidden border ${moduleType === "brain_mri" ? "border-blue-200 bg-blue-50/40" : moduleType === "histopath" ? "border-violet-200 bg-violet-50/40" : moduleType === "wrist_xray" ? "border-emerald-200 bg-emerald-50/40" : "border-rose-200 bg-rose-50/40"}`}>
       <CardContent className="pt-5">
         <div className="mb-4">
-          <Badge tone={moduleType === "brain_mri" ? "blue" : moduleType === "histopath" ? "purple" : "green"}>{badge}</Badge>
+          <Badge tone={moduleType === "brain_mri" ? "blue" : moduleType === "histopath" ? "purple" : moduleType === "wrist_xray" ? "green" : "purple"}>{badge}</Badge>
         </div>
         <div className="flex gap-4">
           <div className={`flex h-[145px] w-[118px] shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br ${bgMap[moduleType]} text-white`}>

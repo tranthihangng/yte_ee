@@ -17,7 +17,7 @@ def summary(db: Session) -> dict:
         "total_cases": total_cases,
         "today_cases": today_cases,
         "avg_accuracy": round(float(avg_acc) * 100, 1),
-        "active_modules": 3,
+        "active_modules": 4,
     }
 
 

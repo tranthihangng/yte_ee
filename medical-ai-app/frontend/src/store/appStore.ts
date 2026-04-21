@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 type AppState = {
-  selectedModule: "brain_mri" | "histopath" | "wrist_xray";
+  selectedModule: "brain_mri" | "histopath" | "wrist_xray" | "tuberculosis_counting";
   setSelectedModule: (m: AppState["selectedModule"]) => void;
 };
 

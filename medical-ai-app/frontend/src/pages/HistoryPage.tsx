@@ -86,7 +86,7 @@ export function HistoryPage() {
           <div className="col-span-2">
             <div className="mb-1 text-xs font-medium text-slate-500">Loại mô-đun</div>
             <select className="input-base" value={module} onChange={(e) => setModule(e.target.value)}>
-              <option value="all">Tất cả</option><option value="brain_mri">Brain MRI</option><option value="histopath">Histopath</option><option value="wrist_xray">Wrist X-ray</option>
+              <option value="all">Tất cả</option><option value="brain_mri">Brain MRI</option><option value="histopath">Histopath</option><option value="wrist_xray">Wrist X-ray</option><option value="tuberculosis_counting">Tuberculosis Counting</option>
             </select>
           </div>
           <div className="col-span-3">

@@ -13,6 +13,7 @@ torch
 pyyaml
 opencv-python
 ultralytics
+tensorflow
 timm
 ml-collections
 einops

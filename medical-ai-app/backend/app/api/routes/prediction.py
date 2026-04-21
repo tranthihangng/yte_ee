@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.ml.brain_mri import predictor as brain_predictor
 from app.ml.histopath import predictor as histo_predictor
+from app.ml.tuberculosis_counting import predictor as tb_predictor
 from app.ml.wrist_xray import predictor as xray_predictor
 from app.schemas.report import ReportCreate
 from app.services.case_service import create_case
@@ -86,6 +87,33 @@ def predict_histopath(
         db,
         "histopath",
         histo_predictor,
+        file,
+        patient_name,
+        patient_identifier,
+        study_date,
+        confidence_threshold,
+        save_to_history,
+        export_report,
+        notes,
+    )
+
+
+@router.post("/tuberculosis-counting")
+def predict_tuberculosis_counting(
+    file: UploadFile = File(...),
+    patient_name: str = Form(...),
+    patient_identifier: str = Form(...),
+    study_date: date = Form(...),
+    confidence_threshold: float = Form(0.25),
+    save_to_history: bool = Form(True),
+    export_report: bool = Form(False),
+    notes: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    return _run_prediction(
+        db,
+        "tuberculosis_counting",
+        tb_predictor,
         file,
         patient_name,
         patient_identifier,

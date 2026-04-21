@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Expand, Hand, Minus, Plus, ScanLine } from "lucide-react";
-import { MouseEvent, useMemo, useState } from "react";
+import { load as loadNpy } from "npyjs";
+import { MouseEvent, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useToast } from "../components/common/ToastProvider";
@@ -33,14 +34,112 @@ export function NewAnalysisPage() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [npyPreviewUrl, setNpyPreviewUrl] = useState("");
+  const [npyPreviewError, setNpyPreviewError] = useState("");
   const { register, handleSubmit, reset, watch } = useForm<AnalysisFormValues>({
     resolver: zodResolver(schema),
     defaultValues: { notes: "" }
   });
   const isNpy = file?.name.toLowerCase().endsWith(".npy") ?? false;
   const originalUrl = useMemo(() => (file && !isNpy ? URL.createObjectURL(file) : ""), [file, isNpy]);
-  const acceptedExt = selectedModule === "brain_mri" ? ".png,.jpg,.jpeg,.npy,.nii,.nii.gz,.dcm" : selectedModule === "histopath" ? ".png,.jpg,.jpeg" : ".png,.jpg,.jpeg,.dcm";
+  const acceptedExt = selectedModule === "brain_mri"
+    ? ".png,.jpg,.jpeg,.npy,.nii,.nii.gz,.dcm"
+    : selectedModule === "histopath" || selectedModule === "tuberculosis_counting"
+      ? ".png,.jpg,.jpeg"
+      : ".png,.jpg,.jpeg,.dcm";
   const notesValue = watch("notes") || "";
+
+  useEffect(() => {
+    let cancelled = false;
+    const buildNpyPreview = async () => {
+      if (!file || !isNpy) {
+        setNpyPreviewUrl("");
+        setNpyPreviewError("");
+        return;
+      }
+      try {
+        setNpyPreviewError("");
+        const parsed = await loadNpy(await file.arrayBuffer());
+        const { data, shape } = parsed;
+        const values = data as unknown as ArrayLike<number>;
+        if (!shape.length) throw new Error("NPY_EMPTY_SHAPE");
+        let width = 0;
+        let height = 0;
+        let voxelAt: (x: number, y: number) => number;
+        if (shape.length === 2) {
+          height = shape[0];
+          width = shape[1];
+          voxelAt = (x, y) => Number(values[y * width + x] ?? 0);
+        } else if (shape.length === 3) {
+          if (shape[0] === 4) {
+            height = shape[1];
+            width = shape[2];
+            voxelAt = (x, y) => Number(values[y * width + x] ?? 0);
+          } else if (shape[2] === 4) {
+            height = shape[0];
+            width = shape[1];
+            voxelAt = (x, y) => Number(values[(y * width + x) * 4] ?? 0);
+          } else {
+            const depth = shape[0];
+            const d = Math.floor(depth / 2);
+            height = shape[1];
+            width = shape[2];
+            const sliceOffset = d * height * width;
+            voxelAt = (x, y) => Number(values[sliceOffset + y * width + x] ?? 0);
+          }
+        } else if (shape.length === 4) {
+          const depth = shape[1];
+          const d = Math.floor(depth / 2);
+          height = shape[2];
+          width = shape[3];
+          const volumeStride = shape[2] * shape[3];
+          const sliceOffset = d * volumeStride;
+          voxelAt = (x, y) => Number(values[sliceOffset + y * width + x] ?? 0);
+        } else {
+          throw new Error("NPY_UNSUPPORTED_DIM");
+        }
+        if (width <= 0 || height <= 0) throw new Error("NPY_INVALID_SHAPE");
+        let min = Number.POSITIVE_INFINITY;
+        let max = Number.NEGATIVE_INFINITY;
+        const gray = new Float32Array(width * height);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            const v = voxelAt(x, y);
+            gray[idx] = v;
+            if (v < min) min = v;
+            if (v > max) max = v;
+          }
+        }
+        const range = max - min || 1;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("CANVAS_CONTEXT_FAILED");
+        const imageData = ctx.createImageData(width, height);
+        for (let i = 0; i < gray.length; i++) {
+          const pixel = Math.max(0, Math.min(255, Math.round(((gray[i] - min) / range) * 255)));
+          const base = i * 4;
+          imageData.data[base] = pixel;
+          imageData.data[base + 1] = pixel;
+          imageData.data[base + 2] = pixel;
+          imageData.data[base + 3] = 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        if (!cancelled) setNpyPreviewUrl(canvas.toDataURL("image/png"));
+      } catch {
+        if (!cancelled) {
+          setNpyPreviewUrl("");
+          setNpyPreviewError("Không tạo được preview cho file .npy này");
+        }
+      }
+    };
+    buildNpyPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [file, isNpy]);
 
   const onSubmit = handleSubmit(async (values) => {
     if (!file) {
@@ -59,7 +158,13 @@ export function NewAnalysisPage() {
       fd.append("confidence_threshold", String(threshold));
       fd.append("save_to_history", String(saveToHistory));
       fd.append("export_report", String(exportReport));
-      const endpoint = selectedModule === "brain_mri" ? "brain-mri" : selectedModule === "histopath" ? "histopath" : "wrist-xray";
+      const endpoint = selectedModule === "brain_mri"
+        ? "brain-mri"
+        : selectedModule === "histopath"
+          ? "histopath"
+          : selectedModule === "tuberculosis_counting"
+            ? "tuberculosis-counting"
+            : "wrist-xray";
       const res = await predictionService.run(endpoint, fd);
       setResult(res);
       if (res.case_id) setCurrentCaseId(res.case_id);
@@ -85,7 +190,7 @@ export function NewAnalysisPage() {
     : 0;
   // Keep left panel faithful to uploaded original for non-npy files.
   // For npy, there is no browser preview, so use backend-generated original preview.
-  const originalPanelImage = !isNpy ? originalUrl : (originalArtifact ? toAssetUrl(originalArtifact) : "");
+  const originalPanelImage = !isNpy ? originalUrl : (npyPreviewUrl || (originalArtifact ? toAssetUrl(originalArtifact) : ""));
   const rightPanelImage = toAssetUrl(overlayArtifact) || toAssetUrl(originalArtifact);
 
   const onMouseMove = (event: MouseEvent<HTMLDivElement>) => {
@@ -109,8 +214,9 @@ export function NewAnalysisPage() {
           <input className="input-base" type="date" {...register("study_date")} />
           <select className="input-base" value={selectedModule} onChange={(e) => setSelectedModule(e.target.value as any)}>
             <option value="brain_mri">Brain MRI Segmentation</option>
-            <option value="histopath">Histopathology Classification</option>
+            <option value="histopath">Histopathology Lung 3-class</option>
             <option value="wrist_xray">Wrist X-ray Detection</option>
+            <option value="tuberculosis_counting">Tuberculosis Bacilli Counting</option>
           </select>
           <div className="soft-panel p-3">
             <div className="mb-2 text-sm font-medium">Tải ảnh lên</div>
@@ -118,7 +224,15 @@ export function NewAnalysisPage() {
             <div className="mt-2 text-xs text-slate-500">Định dạng hỗ trợ: {acceptedExt}</div>
             {file && <div className="text-xs mt-2 font-medium">{file.name}</div>}
             {file && !isNpy && <img src={originalUrl} className="mt-2 h-24 w-full rounded-lg border bg-slate-100 object-contain" />}
-            {file && isNpy && <div className="mt-2 rounded-lg border bg-slate-50 p-2 text-xs text-slate-600">File `.npy` sẽ được backend chuyển thành preview MRI tự động.</div>}
+            {file && isNpy && (
+              npyPreviewUrl ? (
+                <img src={npyPreviewUrl} className="mt-2 h-24 w-full rounded-lg border bg-slate-100 object-contain" />
+              ) : (
+                <div className="mt-2 rounded-lg border bg-slate-50 p-2 text-xs text-slate-600">
+                  {npyPreviewError || "Đang tạo preview `.npy`..."}
+                </div>
+              )
+            )}
           </div>
         </div>
 
@@ -138,7 +252,9 @@ export function NewAnalysisPage() {
                     onError={() => pushToast("Không tải được ảnh gốc từ backend", "error")}
                   />
                 ) : (
-                  <div className="grid h-[360px] place-items-center text-center text-sm text-slate-200">Ảnh `.npy` sẽ hiển thị sau khi backend xử lý</div>
+                  <div className="grid h-[360px] place-items-center text-center text-sm text-slate-200">
+                    {npyPreviewError || "Đang tạo preview `.npy`..."}
+                  </div>
                 )
               ) : (
                 "Ảnh gốc"
