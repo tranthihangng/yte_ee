@@ -206,3 +206,41 @@ Lưu ý thực tế:
 
 - Code quay về cũ nhưng môi trường không quay về tự động; lỗi thường nằm ở `requirements.txt`, `package-lock.json`, hoặc DB schema.
 - Nếu muốn quay lại tạm thời để test mà không ảnh hưởng code hiện tại, luôn tạo nhánh mới từ commit/tag cũ như bước 1.
+
+
+Dùng nhanh bộ lệnh này là đủ cho workflow hằng ngày.
+
+1) Push code mới lên GitHub
+# đang ở repo gd
+git status
+git add .
+git commit -m "feat(scope): mo ta ngan"
+git push
+Nếu là nhánh mới lần đầu:
+
+git push -u origin <ten-nhanh>
+2) Tạo mốc version để sau này quay lại
+git tag -a v1.1.0 -m "UI dashboard + MRI fixes"
+git push origin v1.1.0
+Xem danh sách version:
+
+git tag
+3) Check lại version cũ (không phá code hiện tại)
+Cách an toàn nhất: tạo nhánh test từ tag/commit cũ
+
+git checkout -b test-old-v1.0.0 v1.0.0
+Hoặc từ commit hash:
+
+git checkout -b test-old <commit-hash>
+4) Quay về lại code mới nhất sau khi test version cũ
+git checkout main
+git pull
+5) Nếu muốn “hoàn tác” 1 commit đã push (an toàn)
+git log --oneline
+git revert <commit-hash>
+git push
+Mẹo ngắn:
+
+Muốn xem lại bản cũ: checkout -b ... <tag/commit>
+Muốn hủy lỗi trên main: revert <commit>
+Không nên dùng reset --hard khi đã push (dễ mất lịch sử).

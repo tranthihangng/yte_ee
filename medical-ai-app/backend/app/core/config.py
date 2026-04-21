@@ -19,7 +19,18 @@ class Settings(BaseSettings):
     masks_dir: Path = BASE_DIR / "outputs" / "masks"
     gradcam_dir: Path = BASE_DIR / "outputs" / "gradcam"
     detections_dir: Path = BASE_DIR / "outputs" / "detections"
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ]
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

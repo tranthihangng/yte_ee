@@ -69,3 +69,16 @@ Mỗi predictor giữ nguyên interface:
 ## 5) Ghi chú nâng cấp PostgreSQL
 
 Đổi biến `database_url` trong `backend/app/core/config.py` hoặc `.env` sang PostgreSQL URL, SQLAlchemy models giữ nguyên để migrate.
+
+## 6) Cấu hình gửi email báo cáo
+
+Thêm vào `backend/.env`:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_EMAIL=your-email@gmail.com
+SMTP_USE_TLS=true
+```

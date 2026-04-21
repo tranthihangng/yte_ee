@@ -6,5 +6,10 @@ export const reportService = {
   generatePdf: (caseId: number, payload: Record<string, unknown>) =>
     api.post(`/reports/${caseId}/generate-pdf`, payload).then((r) => r.data),
   downloadPdf: (caseId: number) =>
-    api.get(`/reports/${caseId}/download-pdf`, { responseType: "blob" }).then((r) => r.data)
+    api.get(`/reports/${caseId}/download-pdf`, { responseType: "blob" }).then((r) => r.data),
+  sendReportEmail: (formData: FormData) =>
+    api.post("/send-report-email", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000
+    }).then((r) => r.data)
 };

@@ -2,7 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import auth, cases, dashboard, health, prediction, reports, settings as settings_route
+from app.api.routes import (
+    auth,
+    cases,
+    dashboard,
+    email,
+    health,
+    prediction,
+    reports,
+    settings as settings_route,
+)
 from app.core.config import settings
 from app.core.database import Base, engine
 
@@ -32,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(cases.router, prefix=settings.api_prefix, tags=["cases"])
     app.include_router(prediction.router, prefix=settings.api_prefix, tags=["prediction"])
     app.include_router(reports.router, prefix=settings.api_prefix, tags=["reports"])
+    app.include_router(email.router, prefix=settings.api_prefix, tags=["email"])
     app.include_router(settings_route.router, prefix=settings.api_prefix, tags=["settings"])
     app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
     app.mount("/outputs", StaticFiles(directory=settings.output_dir), name="outputs")
