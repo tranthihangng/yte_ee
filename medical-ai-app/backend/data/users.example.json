@@ -1,0 +1,10 @@
+[
+  {
+    "username": "admin",
+    "password": "change-me",
+    "full_name": "Administrator",
+    "role": "admin",
+    "active": true,
+    "must_change_password": true
+  }
+]

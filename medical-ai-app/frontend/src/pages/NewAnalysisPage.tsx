@@ -8,6 +8,7 @@ import { useToast } from "../components/common/ToastProvider";
 import { predictionService } from "../services/predictionService";
 import { useAppStore } from "../store/appStore";
 import { useCaseStore } from "../store/caseStore";
+import { mapWristLabelToVietnamese } from "../utils/wristLabels";
 
 const schema = z.object({
   patient_name: z.string().min(2),
@@ -18,14 +19,14 @@ const schema = z.object({
 type AnalysisFormValues = z.infer<typeof schema>;
 
 export function NewAnalysisPage() {
-  const BACKEND_ASSET_BASE = "http://127.0.0.1:8000";
+  const BACKEND_ASSET_BASE = import.meta.env.VITE_BACKEND_ASSET_BASE || "http://127.0.0.1:8000";
   const { pushToast } = useToast();
   const selectedModule = useAppStore((s) => s.selectedModule);
   const setSelectedModule = useAppStore((s) => s.setSelectedModule);
   const setCurrentCaseId = useCaseStore((s) => s.setCurrentCaseId);
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<any>(null);
-  const [threshold, setThreshold] = useState(0.8);
+  const [threshold, setThreshold] = useState(0.5);
   const [saveToHistory, setSaveToHistory] = useState(true);
   const [exportReport, setExportReport] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -180,6 +181,7 @@ export function NewAnalysisPage() {
   const originalArtifact = result?.artifacts?.original_image;
   const overlayArtifact = result?.artifacts?.overlay_image || result?.artifacts?.gradcam_image || result?.artifacts?.detection_image;
   const mriClassPixels = result?.module === "brain_mri" ? result?.metrics?.class_pixels : null;
+  const mriClassConfidence = result?.module === "brain_mri" ? result?.metrics?.class_confidence : null;
   const mriClassLegend = [
     { key: "ncr_net", label: "NCR/NET", colorClass: "bg-red-500" },
     { key: "ed", label: "ED", colorClass: "bg-green-500" },
@@ -192,6 +194,17 @@ export function NewAnalysisPage() {
   // For npy, there is no browser preview, so use backend-generated original preview.
   const originalPanelImage = !isNpy ? originalUrl : (npyPreviewUrl || (originalArtifact ? toAssetUrl(originalArtifact) : ""));
   const rightPanelImage = toAssetUrl(overlayArtifact) || toAssetUrl(originalArtifact);
+  const displayLabel = result?.module === "wrist_xray"
+    ? mapWristLabelToVietnamese(result?.predicted_label)
+    : result?.predicted_label;
+  const shouldShowPredictionConfidence = Boolean(
+    result &&
+    result?.module !== "brain_mri" &&
+    Number(result?.confidence || 0) > 0
+  );
+  const predictionConfidencePercent = shouldShowPredictionConfidence
+    ? (Number(result?.confidence || 0) * 100).toFixed(1)
+    : "";
 
   const onMouseMove = (event: MouseEvent<HTMLDivElement>) => {
     if (!dragging) return;
@@ -291,10 +304,10 @@ export function NewAnalysisPage() {
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <div className="font-semibold text-slate-800">Thông tin kết quả</div>
               <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
-                <div>Nhãn dự đoán: <b>{result.predicted_label}</b></div>
-                <div>Độ tin cậy: <b>{Number(result.confidence).toFixed(3)}</b></div>
-                {result.metrics?.dice !== undefined && <div>Dice: <b>{Number(result.metrics.dice).toFixed(3)}</b></div>}
-                {result.metrics?.area_cm2 !== undefined && <div>Area: <b>{Number(result.metrics.area_cm2).toFixed(2)} cm2</b></div>}
+                <div>Nhãn dự đoán: <b>{displayLabel}</b></div>
+                {shouldShowPredictionConfidence ? (
+                  <div>Độ chính xác dự đoán: <b>{predictionConfidencePercent}%</b></div>
+                ) : null}
               </div>
               {mriClassPixels && (
                 <div className="mt-3 border-t border-slate-200 pt-2">
@@ -311,6 +324,11 @@ export function NewAnalysisPage() {
                           </div>
                           <div className="text-xs text-slate-600">
                             <b>{pct.toFixed(1)}%</b> ({px}px)
+                            {mriClassConfidence ? (
+                              <span className="ml-2 text-slate-500">
+                                | Độ chính xác lớp: {(Number(mriClassConfidence[item.key] || 0) * 100).toFixed(1)}%
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -340,14 +358,14 @@ export function NewAnalysisPage() {
           <label className="text-sm"><input type="checkbox" checked={saveToHistory} onChange={(e) => setSaveToHistory(e.target.checked)} /> Lưu vào lịch sử</label>
           <label className="text-sm"><input type="checkbox" defaultChecked /> Hiển thị lớp phủ</label>
           <label className="text-sm"><input type="checkbox" checked={exportReport} onChange={(e) => setExportReport(e.target.checked)} /> Xuất báo cáo sau phân tích</label>
-          <button className="w-full rounded-xl bg-blue-600 py-2 text-white" disabled={loading} onClick={onSubmit}>{loading ? "Đang chạy..." : "Bắt đầu phân tích"}</button>
-          <button className="w-full rounded-xl border py-2" onClick={() => { reset(); setFile(null); setResult(null); setZoom(1); setOffset({ x: 0, y: 0 }); }}>Đặt lại</button>
-          <button className="w-full rounded-xl border py-2" onClick={() => pushToast("Đã lưu bản nháp cục bộ", "info")}>Lưu bản nháp</button>
           <div className="soft-panel p-3">
             <div className="mb-1 text-sm font-medium">Ghi chú lâm sàng</div>
             <textarea className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-blue-400" rows={4} maxLength={500} placeholder="Nhập ghi chú lâm sàng, tiền sử, triệu chứng..." {...register("notes")} />
             <div className="mt-1 text-right text-xs text-slate-500">{notesValue.length}/500</div>
           </div>
+          <button className="w-full rounded-xl bg-blue-600 py-2 text-white" disabled={loading} onClick={onSubmit}>{loading ? "Đang chạy..." : "Bắt đầu phân tích"}</button>
+          <button className="w-full rounded-xl border py-2" onClick={() => { reset(); setFile(null); setResult(null); setZoom(1); setOffset({ x: 0, y: 0 }); }}>Đặt lại</button>
+          <button className="w-full rounded-xl border py-2" onClick={() => pushToast("Đã lưu bản nháp cục bộ", "info")}>Lưu bản nháp</button>
           <div className="soft-panel p-3 text-sm">
             <div className="font-medium mb-1">Hướng dẫn nhanh</div>
             <ul className="list-disc space-y-1 pl-4 text-slate-600">
@@ -358,7 +376,12 @@ export function NewAnalysisPage() {
           </div>
         </div>
       </div>
-      {result && <div className="card p-4 text-sm"><b>Kết quả:</b> {result.predicted_label} - {Math.round(result.confidence * 100)}%</div>}
+      {result && (
+        <div className="card p-4 text-sm">
+          <b>Kết quả:</b> {displayLabel}
+          {shouldShowPredictionConfidence ? ` (${predictionConfidencePercent}%)` : ""}
+        </div>
+      )}
     </div>
   );
 }

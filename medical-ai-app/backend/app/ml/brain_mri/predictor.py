@@ -175,7 +175,7 @@ def load_model():
         raise RuntimeError(f"Failed to load MRI model: {exc}") from exc
 
 
-def _predict_with_cbim(file_path: str, mask_path: str) -> tuple[float, np.ndarray]:
+def _predict_with_cbim(file_path: str, mask_path: str) -> tuple[float, np.ndarray, dict[str, float]]:
     model = load_model()
     if F is None:
         raise RuntimeError("torch.nn.functional unavailable")
@@ -188,6 +188,7 @@ def _predict_with_cbim(file_path: str, mask_path: str) -> tuple[float, np.ndarra
         prob = F.softmax(output, dim=1)
         pred = torch.argmax(prob, dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
         conf = float(prob.max().item())
+        prob_np = prob.squeeze(0).cpu().numpy()  # (C,H,W)
     # Save mask with class colors like reference script:
     # 0: background (black), 1: red, 2: green, 3: yellow
     color_map = np.array(
@@ -203,7 +204,15 @@ def _predict_with_cbim(file_path: str, mask_path: str) -> tuple[float, np.ndarra
     rgb_mask = color_map[pred_safe]
     mask_img = Image.fromarray(rgb_mask, mode="RGB")
     mask_img.save(mask_path)
-    return conf, pred_safe
+    class_confidence: dict[str, float] = {}
+    class_keys = {1: "ncr_net", 2: "ed", 3: "et"}
+    for class_id, class_key in class_keys.items():
+        region = pred_safe == class_id
+        if np.any(region):
+            class_confidence[class_key] = float(np.mean(prob_np[class_id, region]))
+        else:
+            class_confidence[class_key] = 0.0
+    return conf, pred_safe, class_confidence
 
 
 def _dilate_binary(mask: np.ndarray, iterations: int = 2) -> np.ndarray:
@@ -292,7 +301,7 @@ def _create_overlay(
 def predict(file_path: str, confidence_threshold: float = 0.5) -> dict:
     original = _save_original_preview(file_path, str(settings.overlays_dir / f"mri_original_{uuid4().hex}.png"))
     mask = str(settings.masks_dir / f"mri_mask_{uuid4().hex}.png")
-    confidence, pred_map = _predict_with_cbim(file_path, mask)
+    confidence, pred_map, class_confidence = _predict_with_cbim(file_path, mask)
     if not Path(mask).exists():
         raise RuntimeError("MRI mask generation failed")
     confidence = max(confidence_threshold, confidence)
@@ -318,6 +327,7 @@ def predict(file_path: str, confidence_threshold: float = 0.5) -> dict:
             "dice": dice_proxy,
             "area_cm2": area_cm2,
             "class_pixels": {"ncr_net": cls1_pixels, "ed": cls2_pixels, "et": cls3_pixels},
+            "class_confidence": class_confidence,
         },
         "artifacts": {
             "original_image": to_public_path(original),

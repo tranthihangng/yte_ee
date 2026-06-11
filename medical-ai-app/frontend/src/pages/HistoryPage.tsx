@@ -4,6 +4,25 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/common/ToastProvider";
 import { caseService } from "../services/caseService";
 
+const VIETNAM_TZ = "Asia/Ho_Chi_Minh";
+
+const formatHistoryVietnamDateTime = (raw: string | null | undefined): string => {
+  if (!raw) return "-";
+  const hasTimezone = raw.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(raw);
+  const iso = hasTimezone ? raw : `${raw}Z`;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return raw;
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: VIETNAM_TZ,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
 export function HistoryPage() {
   const navigate = useNavigate();
   const { pushToast } = useToast();
@@ -131,7 +150,7 @@ export function HistoryPage() {
               <tr key={i.id} className="border-t">
                 <td className="px-3 py-2 font-semibold">{i.case_code}</td>
                 <td className="px-3 py-2">{i.patient_name} / {i.patient_identifier}</td>
-                <td className="px-3 py-2">{new Date(i.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</td>
+                <td className="px-3 py-2">{formatHistoryVietnamDateTime(i.created_at)}</td>
                 <td className="px-3 py-2 font-medium">{i.predicted_label || "-"}</td>
                 <td className="px-3 py-2 text-blue-600">{i.confidence ? i.confidence.toFixed(2) : "-"}</td>
                 <td className="px-3 py-2">{statusBadge(i.status)}</td>

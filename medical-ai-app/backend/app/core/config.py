@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "change-me-in-production"
     database_url: str = f"sqlite:///{BASE_DIR / 'medical_ai.db'}"
+    users_file: Path = BASE_DIR / "data" / "users.json"
     upload_dir: Path = BASE_DIR / "uploads"
     output_dir: Path = BASE_DIR / "outputs"
     reports_dir: Path = BASE_DIR / "outputs" / "reports"
@@ -24,6 +25,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
+        "http://192.168.1.110:5173",
+        "http://172.20.10.2:5173"
     ]
     smtp_host: str = ""
     smtp_port: int = 587

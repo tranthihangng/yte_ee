@@ -4,7 +4,9 @@ import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../components/common/ToastProvider";
 import { reportService } from "../services/reportService";
+import { useAuthStore } from "../store/authStore";
 import { useCaseStore } from "../store/caseStore";
+import { mapWristLabelToVietnamese } from "../utils/wristLabels";
 import { fetchBlobByUrl, generateReportPdfBlob, printReportFromElement } from "../utils/reportExport";
 
 type EmailFormState = {
@@ -17,10 +19,24 @@ type EmailFormState = {
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const BACKEND_BASE = "http://localhost:8000";
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_ASSET_BASE || "http://127.0.0.1:8000";
+const VIETNAM_TZ = "Asia/Ho_Chi_Minh";
+
+const formatVietnamDateTime = (value: Date): string =>
+  new Intl.DateTimeFormat("vi-VN", {
+    timeZone: VIETNAM_TZ,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(value);
 
 export function ReportPage() {
   const { pushToast } = useToast();
+  const authUser = useAuthStore((state) => state.user);
   const [params] = useSearchParams();
   const caseId = Number(params.get("case_id") || useCaseStore.getState().currentCaseId || 0);
   const reportPreviewRef = useRef<HTMLDivElement | null>(null);
@@ -28,6 +44,7 @@ export function ReportPage() {
   const [includeImages, setIncludeImages] = useState(true);
   const [includeMetrics, setIncludeMetrics] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(true);
+  const [doctorAdvice, setDoctorAdvice] = useState("");
   const [showLogo, setShowLogo] = useState(true);
   const [maskPersonalInfo, setMaskPersonalInfo] = useState(false);
   const [preview, setPreview] = useState<any>(null);
@@ -45,6 +62,12 @@ export function ReportPage() {
   });
 
   useEffect(() => {
+    if (!createdAt) {
+      setCreatedAt(formatVietnamDateTime(new Date()));
+    }
+  }, [createdAt]);
+
+  useEffect(() => {
     if (!caseId) return;
     setLoading(true);
     reportService
@@ -54,19 +77,52 @@ export function ReportPage() {
       .finally(() => setLoading(false));
   }, [caseId, pushToast]);
 
+  useEffect(() => {
+    const realCaseCode = String(preview?.case?.case_code || "").trim();
+    if (realCaseCode) {
+      setEmailForm((prev) => ({
+        ...prev,
+        subject: `Báo cáo ca bệnh ${realCaseCode}`
+      }));
+    }
+  }, [preview?.case?.case_code]);
+
   const maskedPatient = useMemo(() => {
     const patient = preview?.case?.patient_name || "BN-001";
     if (!maskPersonalInfo) return patient;
     return patient.slice(0, 2) + "***";
   }, [preview, maskPersonalInfo]);
 
-  const caseCode = preview?.case?.case_code || `CA${String(caseId).padStart(6, "0")}`;
+  const caseCode = String(preview?.case?.case_code || "").trim();
+  const hasValidCaseCode = Boolean(caseCode);
   const moduleType = String(preview?.case?.module_type || "report").replace(/[^a-zA-Z0-9_-]/g, "_");
   const originalImageUrl = preview?.images?.original_image ? `${BACKEND_BASE}${preview.images.original_image}` : "";
   const resultImageUrl = preview?.images?.result_image ? `${BACKEND_BASE}${preview.images.result_image}` : "";
+  const doctorName = authUser?.full_name || "Bác sĩ phụ trách";
+  const doctorTitle = authUser?.role === "admin" ? "Quản trị viên xác nhận" : "Bác sĩ xác nhận";
+  const displayPredictedLabel = preview?.case?.module_type === "wrist_xray"
+    ? mapWristLabelToVietnamese(preview?.prediction?.predicted_label)
+    : (preview?.prediction?.predicted_label || "-");
+  const shouldShowPredictionConfidence =
+    Boolean(
+      preview?.prediction?.confidence !== undefined &&
+      preview?.case?.module_type !== "brain_mri" &&
+      Number(preview?.prediction?.confidence || 0) > 0
+    );
+  const predictionConfidencePercent = shouldShowPredictionConfidence
+    ? (Number(preview?.prediction?.confidence || 0) * 100).toFixed(1)
+    : "";
+  const mriClassConfidence = preview?.prediction?.metrics?.class_confidence as Record<string, number> | undefined;
+  const mriClassConfidenceText = mriClassConfidence
+    ? `NCR/NET ${(Number(mriClassConfidence.ncr_net || 0) * 100).toFixed(1)}%, ED ${(Number(mriClassConfidence.ed || 0) * 100).toFixed(1)}%, ET ${(Number(mriClassConfidence.et || 0) * 100).toFixed(1)}%`
+    : "";
 
   const exportPDF = async () => {
     if (!reportPreviewRef.current || !caseId) return;
+    if (!hasValidCaseCode) {
+      pushToast("Thiếu Mã ca hợp lệ. Không thể xuất/lưu báo cáo.", "error");
+      return;
+    }
     try {
       const blob = await generateReportPdfBlob(reportPreviewRef.current);
       const url = URL.createObjectURL(blob);
@@ -75,7 +131,7 @@ export function ReportPage() {
       a.download = `report_${caseCode}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      setCreatedAt(new Date().toLocaleString("vi-VN"));
+      setCreatedAt(formatVietnamDateTime(new Date()));
       pushToast("Đã xuất PDF thành công", "success");
     } catch {
       pushToast("Xuất PDF thất bại", "error");
@@ -168,6 +224,10 @@ export function ReportPage() {
   };
 
   const sendReportEmail = async () => {
+    if (!hasValidCaseCode) {
+      pushToast("Thiếu Mã ca hợp lệ. Không thể gửi email báo cáo.", "error");
+      return;
+    }
     const validationError = validateEmailForm();
     if (validationError) {
       pushToast(validationError, "error");
@@ -258,12 +318,26 @@ export function ReportPage() {
                 </div>
               </div>
             )}
-            {includeMetrics && <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm"><div className="mb-2 font-semibold">Kết quả phân tích</div><div className="grid grid-cols-2 gap-2 text-slate-700"><div>Phát hiện tổn thương:</div><div>{preview?.prediction?.summary || "-"}</div><div>Nhãn dự đoán:</div><div>{preview?.prediction?.predicted_label || "-"}</div><div>Độ tin cậy:</div><div>{preview?.prediction?.confidence ? Number(preview.prediction.confidence).toFixed(3) : "-"}</div><div>Chỉ số:</div><div>{preview?.prediction?.metrics ? JSON.stringify(preview.prediction.metrics) : "-"}</div></div></div>}
-            {includeNotes && <div className="mt-5 rounded-xl border border-slate-200 p-3 text-sm text-slate-600">{preview?.case?.notes || "Chưa có ghi chú lâm sàng."}</div>}
+            {includeMetrics && <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm"><div className="mb-2 font-semibold">Kết quả phân tích</div><div className="grid grid-cols-2 gap-2 text-slate-700"><div>Phát hiện tổn thương:</div><div>{preview?.prediction?.summary || "-"}</div><div>Nhãn dự đoán:</div><div>{displayPredictedLabel}</div>{shouldShowPredictionConfidence ? <><div>Độ chính xác dự đoán:</div><div>{predictionConfidencePercent}%</div></> : null}{mriClassConfidenceText ? <><div>Độ chính xác theo lớp:</div><div>{mriClassConfidenceText}</div></> : null}</div></div>}
+            {includeNotes && (
+              <div className="mt-5 space-y-3">
+                <div className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
+                  <div className="mb-1 font-semibold text-slate-700">Ghi chú lâm sàng</div>
+                  <div>{preview?.case?.notes || "Chưa có ghi chú lâm sàng."}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
+                  <div className="mb-1 font-semibold text-slate-700">Khuyến nghị bác sĩ</div>
+                  <div className="whitespace-pre-wrap">
+                    {doctorAdvice.trim() ||
+                      "Chưa có khuyến nghị bổ sung."}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="mt-8 grid grid-cols-3 gap-4 text-center text-xs text-slate-600">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="font-semibold">Bác sĩ xác nhận</div>
-                <div className="mt-1">TS.BS. Phạm Văn Nam</div>
+                <div className="font-semibold">{doctorTitle}</div>
+                <div className="mt-1">{doctorName}</div>
                 <div className="mt-5 text-[11px] text-slate-500">Chữ ký bác sỹ / Ký xác nhận</div>
                 <div className="mx-auto mt-10 h-px w-10/12 bg-slate-400" />
                 <div className="mt-2 text-[10px] text-slate-400">(Ký và ghi rõ họ tên)</div>
@@ -290,7 +364,7 @@ export function ReportPage() {
             <button onClick={() => setTemplateType("detail")} className={`rounded-lg py-2 text-sm ${templateType === "detail" ? "bg-blue-600 text-white" : "bg-slate-100"}`}>Chi tiết</button>
           </div>
           <select className="input-base mt-3">
-            <option>{preview?.case?.module_type || "Brain MRI Segmentation"} ({caseCode})</option>
+            <option>{preview?.case?.module_type || "Brain MRI Segmentation"} ({caseCode || "MISSING_CASE_CODE"})</option>
           </select>
           <div className="space-y-2 mt-3 text-sm">
             <label><input type="checkbox" checked={includeImages} onChange={(e) => setIncludeImages(e.target.checked)} /> Bao gồm hình ảnh</label><br />
@@ -299,11 +373,22 @@ export function ReportPage() {
             <label><input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} /> Hiển thị logo MedAI Assist</label><br />
             <label><input type="checkbox" checked={maskPersonalInfo} onChange={(e) => setMaskPersonalInfo(e.target.checked)} /> Làm mờ thông tin cá nhân</label>
           </div>
-          <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2 text-white" onClick={exportPDF}><FileDown className="h-4 w-4" />Xuất PDF</button>
+          <div className="mt-3">
+            <div className="mb-1 text-sm font-medium text-slate-700">Khuyến nghị bác sĩ trước khi xuất/gửi</div>
+            <textarea
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              rows={5}
+              value={doctorAdvice}
+              onChange={(e) => setDoctorAdvice(e.target.value)}
+              placeholder="Ví dụ: dùng thuốc theo toa, tái khám sau 2 tuần, hạn chế vận động mạnh vùng tổn thương..."
+            />
+          </div>
+          <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2 text-white disabled:opacity-60" onClick={exportPDF} disabled={!hasValidCaseCode}><FileDown className="h-4 w-4" />Xuất PDF</button>
           <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-2" onClick={printReport}><Printer className="h-4 w-4" />In báo cáo</button>
           <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-2" onClick={downloadResultImage}><Download className="h-4 w-4" />Tải ảnh kết quả</button>
-          <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-2" onClick={() => setShowEmailModal(true)}><Mail className="h-4 w-4" />Gửi email</button>
-          <div className="soft-panel mt-3 p-3 text-xs text-slate-600">{loading ? "Đang tải..." : `Thời gian tạo: ${createdAt || "-"}`}<br />Người tạo: Nguyễn Thị An<br />Phiên bản mô hình: BrainSeg v1.2.0<br />Định dạng: PDF (layout gần preview)</div>
+          <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-2 disabled:opacity-60" onClick={() => setShowEmailModal(true)} disabled={!hasValidCaseCode}><Mail className="h-4 w-4" />Gửi email</button>
+          {!hasValidCaseCode ? <div className="mt-2 text-xs text-red-600">Thiếu Mã ca hợp lệ từ backend. Vui lòng lưu ca bệnh trước khi xuất/gửi báo cáo.</div> : null}
+          <div className="soft-panel mt-3 p-3 text-xs text-slate-600">{loading ? "Đang tải..." : `Thời gian tạo: ${createdAt || "-"}`}<br />Người tạo: {doctorName}<br />Phiên bản mô hình: BrainSeg v1.2.0<br />Định dạng: PDF (layout gần preview)</div>
         </div>
       </div>
       {showEmailModal && (

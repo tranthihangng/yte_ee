@@ -28,6 +28,7 @@ build/
 .env
 .env.*
 !.env.example
+medical-ai-app/backend/(1).env
 
 # App runtime artifacts
 medical-ai-app/backend/uploads/*
@@ -45,8 +46,13 @@ medical-ai-app/backend/outputs/reports/*
 
 # Local database
 medical-ai-app/backend/*.db
+medical-ai-app/backend/data/users.json
 
 # Heavy model weights/checkpoints
 *.pt
 *.pth
 *.ckpt
+*.keras
+
+# Generated build metadata
+*.tsbuildinfo

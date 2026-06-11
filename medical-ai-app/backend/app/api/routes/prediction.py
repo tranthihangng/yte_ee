@@ -12,6 +12,7 @@ from app.schemas.report import ReportCreate
 from app.services.case_service import create_case
 from app.services.prediction_service import save_prediction
 from app.services.report_service import create_report_record
+from app.services.preprocess_service import preprocess
 from app.services.storage_service import save_upload
 
 router = APIRouter(prefix="/predict")
@@ -32,7 +33,8 @@ def _run_prediction(
 ):
     path = save_upload(file, module_type)
     try:
-        result = predictor.predict(path, confidence_threshold)
+        prepared_path = preprocess(path, module_type)
+        result = predictor.predict(prepared_path, confidence_threshold)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"{module_type} prediction failed: {exc}") from exc
     if save_to_history:

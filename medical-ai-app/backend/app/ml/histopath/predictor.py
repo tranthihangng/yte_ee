@@ -138,5 +138,5 @@ def predict(file_path: str, confidence_threshold: float = 0.5) -> dict:
             "class_probabilities": {cls: float(prob) for cls, prob in zip(_CLASS_NAMES, pred[0].tolist())},
         },
         "artifacts": {"original_image": to_public_path(original), "gradcam_image": to_public_path(gradcam_path)},
-        "summary": f"Mô hình phân loại {label_display} với độ tin cậy {pred_conf:.3f}",
+        "summary": f"Mô hình phân loại: {label_display}",
     }

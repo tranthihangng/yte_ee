@@ -16,6 +16,8 @@ pip install -r requirements.txt
 python init_db.py
 uvicorn app.main:app --reload --port 8000
 ```
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
 
 ## 2) Chạy frontend
 
@@ -24,6 +26,8 @@ cd frontend
 npm install
 npm run dev
 ```
+npm run dev -- --host 0.0.0.0 --port 5173
+
 
 Frontend chạy tại `http://localhost:5173`, backend tại `http://localhost:8000`.
 
@@ -82,3 +86,15 @@ SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_USE_TLS=true
 ```
+
+## 7) Đăng nhập bằng file JSON
+
+Tạo file local từ mẫu trước khi chạy backend:
+
+```bash
+cp backend/data/users.example.json backend/data/users.json
+```
+
+- File `backend/data/users.json` được Git bỏ qua để tránh lộ tài khoản.
+- Đổi ngay mật khẩu mẫu trước khi triển khai.
+- Hỗ trợ `password` cho local và `password_hash` an toàn hơn.

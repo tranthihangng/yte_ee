@@ -101,7 +101,7 @@ export function ReportViewer({
           <div className="mt-10 grid grid-cols-3 border-t border-slate-300 pt-6 text-center text-sm">
             <div>
               <div className="font-semibold">Bác sĩ xác nhận</div>
-              <div className="mt-8 font-medium">TS.BS. Trần Minh Đức</div>
+              <div className="mt-8 font-medium">TS.BS. Phạm Văn Nam</div>
               <div className="text-slate-500">Chuyên khoa Chẩn đoán hình ảnh</div>
             </div>
             <div>
